@@ -1,0 +1,3 @@
+dnslib
+PyQt6
+psutil>=5.9.0

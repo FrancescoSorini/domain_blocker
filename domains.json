@@ -1,0 +1,7 @@
+{
+  "blocked_domains": [
+    "example.com",
+    "facebook.com",
+    "test.local"
+  ]
+}
