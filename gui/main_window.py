@@ -1,13 +1,15 @@
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QPushButton, QTextEdit, QLabel,
     QListWidget, QLineEdit, QMessageBox,
-    QHBoxLayout, QInputDialog
+    QHBoxLayout, QInputDialog, QToolButton
 )
 
 from config.domain_manager import load_domains, add_domain, remove_domain
 from gui.controller import AppController
-from system.security import check_password
+from system.security import check_password, change_password
 
 
 class MainWindow(QMainWindow):
@@ -15,14 +17,25 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("DNS Domain Blocker")
-        self.resize(700, 500)
+        self.resize(900, 620)
+        self.setMinimumSize(820, 560)
 
         # =========================
         # UI BASE
         # =========================
+        self.title_label = QLabel("DNS Domain Blocker")
         self.status_label = QLabel("Stato: INATTIVO")
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
+
+        self.theme_btn = QToolButton()
+        self.theme_btn.setText("☀")
+        self.theme_btn.setToolTip("Cambia a light mode")
+
+        self.change_password_icon_btn = QToolButton()
+        self.change_password_icon_btn.setText("🔑")
+        self.change_password_icon_btn.setToolTip("Cambia password")
+        self._apply_theme("dark")
 
         self.start_btn = QPushButton("Avvia DNS Blocker")
         self.stop_btn = QPushButton("Ferma DNS Blocker")
@@ -46,6 +59,13 @@ class MainWindow(QMainWindow):
         # LAYOUT PRINCIPALE
         # =========================
         layout = QVBoxLayout()
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(self.title_label)
+        header_layout.addStretch(1)
+        header_layout.addWidget(self.change_password_icon_btn)
+        header_layout.addWidget(self.theme_btn)
+
+        layout.addLayout(header_layout)
         layout.addWidget(self.status_label)
         layout.addWidget(self.start_btn)
         layout.addWidget(self.stop_btn)
@@ -72,10 +92,33 @@ class MainWindow(QMainWindow):
         # =========================
         self.start_btn.clicked.connect(self.start_blocker)
         self.stop_btn.clicked.connect(self.stop_blocker)
+
         self.add_domain_btn.clicked.connect(self.handle_add_domain)
         self.remove_domain_btn.clicked.connect(self.handle_remove_domain)
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        self.change_password_icon_btn.clicked.connect(self.change_admin_password)
 
         self.load_domains_to_ui()
+
+    # =========================
+    # UI THEME
+    # =========================
+    def _apply_theme(self, theme: str):
+        self._theme = theme
+        style_name = "style.qss" if theme == "dark" else "style_light.qss"
+        style_path = Path(__file__).resolve().parent / style_name
+        self.setStyleSheet(style_path.read_text(encoding="utf-8"))
+
+        if theme == "dark":
+            self.theme_btn.setText("☀")
+            self.theme_btn.setToolTip("Cambia a light mode")
+        else:
+            self.theme_btn.setText("☾")
+            self.theme_btn.setToolTip("Cambia a dark mode")
+
+    def toggle_theme(self):
+        next_theme = "light" if self._theme == "dark" else "dark"
+        self._apply_theme(next_theme)
 
     # =========================
     # LOG
@@ -86,19 +129,36 @@ class MainWindow(QMainWindow):
     # =========================
     # PASSWORD MODAL
     # =========================
+    def _show_error(self, title: str, message: str):
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Critical)
+        box.setWindowTitle(title)
+        box.setText(message)
+        box.setMinimumWidth(480)
+        box.resize(520, 160)
+        box.exec()
+
+    def _get_password_input(self, title: str, prompt: str):
+        dialog = QInputDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setLabelText(prompt)
+        dialog.setTextEchoMode(QLineEdit.EchoMode.Password)
+        dialog.setMinimumWidth(480)
+        dialog.resize(520, 160)
+        ok = dialog.exec()
+        return dialog.textValue(), ok
+
     def request_password(self, action: str) -> bool:
-        password, ok = QInputDialog.getText(
-            self,
+        password, ok = self._get_password_input(
             "Conferma richiesta",
-            f"Inserisci la password per {action}:",
-            QLineEdit.EchoMode.Password
+            f"Inserisci la password per {action}:"
         )
 
         if not ok:
             return False
 
         if not check_password(password):
-            QMessageBox.critical(self, "Accesso negato", "Password errata")
+            self._show_error(" ", "Password errata")
             return False
 
         return True
@@ -113,7 +173,6 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(True)
 
     def stop_blocker(self):
-        # PROTEZIONE CON PASSWORD
         if not self.request_password("fermare il DNS blocker"):
             self.append_log("[SECURITY] Tentativo di stop bloccato")
             return
@@ -122,6 +181,55 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Stato: INATTIVO")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
+
+    # =========================
+    # CHANGE PASSWORD
+    # =========================
+    def change_admin_password(self):
+        # 1️⃣ Verifica password attuale
+        current_pwd, ok = self._get_password_input(
+            "Cambia password",
+            "Inserisci la password attuale:"
+        )
+
+        if not ok:
+            return
+
+        if not check_password(current_pwd):
+            self._show_error(" ", "Password attuale errata")
+            self.append_log("[SECURITY] Password attuale errata")
+            return
+
+        # 2️⃣ Nuova password
+        new_pwd, ok = self._get_password_input(
+            "Cambia password",
+            "Inserisci la nuova password:"
+        )
+
+        if not ok or not new_pwd:
+            QMessageBox.warning(self, "Errore", "Password non valida")
+            return
+
+        # 3️⃣ Conferma nuova password
+        confirm_pwd, ok = self._get_password_input(
+            "Cambia password",
+            "Conferma la nuova password:"
+        )
+
+        if not ok or new_pwd != confirm_pwd:
+            QMessageBox.warning(self, "Errore", "Le password non coincidono")
+            return
+
+        # 4️⃣ Applica cambio
+        change_password(current_pwd, new_pwd)
+
+        QMessageBox.information(
+            self,
+            "Successo",
+            "Password aggiornata con successo"
+        )
+        self.append_log("[SECURITY] Password amministratore aggiornata")
+
 
     # =========================
     # DOMAINS UI
@@ -148,11 +256,15 @@ class MainWindow(QMainWindow):
 
     def handle_remove_domain(self):
         item = self.domain_list.currentItem()
-
         if not item:
             return
 
         domain = item.text()
+
+        if not self.request_password(f"rimuovere il dominio '{domain}'"):
+            self.append_log(f"[SECURITY] Tentativo di rimozione bloccato: {domain}")
+            return
+
         remove_domain(domain)
         self.load_domains_to_ui()
         self.append_log(f"Rimosso dominio bloccato: {domain}")
@@ -161,19 +273,15 @@ class MainWindow(QMainWindow):
     # CHIUSURA FINESTRA
     # =========================
     def closeEvent(self, event):
-        # Se il DNS blocker NON e attivo -> chiudi senza password
         if not self.controller.is_running:
             event.accept()
             return
 
-        # DNS blocker attivo -> serve password
         if not self.request_password("chiudere l'applicazione"):
             self.append_log("[SECURITY] Chiusura bloccata")
             event.ignore()
             return
 
-        # Password OK -> fermiamo il blocker in modo pulito
         self.append_log("[APP] Arresto DNS blocker prima della chiusura")
         self.controller.stop()
-
         event.accept()
