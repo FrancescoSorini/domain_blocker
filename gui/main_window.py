@@ -326,12 +326,10 @@ class MainWindow(QMainWindow):
         duration_layout.addLayout(custom_layout)
         duration_group.setLayout(duration_layout)
 
-        #cancel_btn = QPushButton("Annulla programmazione")
         close_btn = QPushButton("Chiudi")
 
         dialog_layout.addWidget(interval_group)
         dialog_layout.addWidget(duration_group)
-        #dialog_layout.addWidget(cancel_btn)
         dialog_layout.addWidget(close_btn)
 
         def apply_interval():
@@ -363,30 +361,18 @@ class MainWindow(QMainWindow):
             self._apply_duration_schedule(minutes)
             dialog.accept()
 
-        def cancel_schedule():
-            if self._is_schedule_session_active():
-                if not self.request_password("annullare la programmazione attiva"):
-                    self.append_log("[SECURITY] Annullamento programmazione bloccato")
-                    return
-            self._clear_schedule_timers()
-            self._schedule_mode = None
-            self._schedule_interval_start = None
-            self._schedule_interval_end = None
-            clear_schedule()
-            self.append_log("[SCHEDULE] Programmazione annullata")
-            self._show_info("Programmazione", "Programmazione annullata.")
-            self._set_schedule_active(False)
-            dialog.accept()
 
         interval_apply_btn.clicked.connect(apply_interval)
         for btn, minutes in preset_buttons:
             btn.clicked.connect(lambda _, m=minutes, b=btn: select_preset(m, b))
         start_duration_btn.clicked.connect(apply_selected_duration)
-        #cancel_btn.clicked.connect(cancel_schedule)
         close_btn.clicked.connect(dialog.reject)
 
         dialog.exec()
 
+    # =========================
+    # INFO BOX
+    # =========================
     def open_info_dialog(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("ℹ️ Informazioni sull’applicazione")
