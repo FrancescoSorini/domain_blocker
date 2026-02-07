@@ -3,7 +3,7 @@ import socket
 import threading
 from pathlib import Path
 
-from dnslib import DNSRecord, QTYPE, RR, A
+from dnslib import DNSRecord, QTYPE, RR, A, AAAA
 from dnslib.server import DNSServer, BaseResolver
 
 from system.network import load_dns_state
@@ -61,8 +61,11 @@ class BlockResolver(BaseResolver):
     def __init__(self):
         # Legge dinamicamente DNS upstream dalla rete attiva
         state = load_dns_state()
-        if state and state.get("dns"):
-            self.upstream_dns_list = [(ip, 53) for ip in state["dns"]]
+        dns_v4 = None
+        if state:
+            dns_v4 = state.get("dns_ipv4") or state.get("dns")
+        if dns_v4:
+            self.upstream_dns_list = [(ip, 53) for ip in dns_v4]
         else:
             self.upstream_dns_list = [("8.8.8.8", 53)]  # fallback
 
@@ -78,9 +81,13 @@ class BlockResolver(BaseResolver):
         # BLOCCO DOMINIO
         if is_blocked(domain, blocked_domains):
             print(f"[BLOCCATO] {domain}")
-            if qtype in ("A", "AAAA"):
+            if qtype == "A":
                 reply.add_answer(
                     RR(rname=request.q.qname, rtype=QTYPE.A, rclass=1, ttl=60, rdata=A("0.0.0.0"))
+                )
+            elif qtype == "AAAA":
+                reply.add_answer(
+                    RR(rname=request.q.qname, rtype=QTYPE.AAAA, rclass=1, ttl=60, rdata=AAAA("::"))
                 )
             return reply
 

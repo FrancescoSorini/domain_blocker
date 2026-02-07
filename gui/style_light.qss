@@ -3,7 +3,7 @@ QMainWindow {
 }
 QWidget {
     color: #0f172a;
-    font-family: "Segoe UI", "Inter", "Arial";
+    font-family: "Poppins", "Segoe UI", "Inter", "Arial";
     font-size: 14px;
 }
 QLabel {
@@ -44,6 +44,7 @@ QPushButton {
     padding: 10px 14px;
     color: #0f172a;
     font-weight: 600;
+    font-family: "Segoe UI", "Inter", "Arial";
 }
 QPushButton:hover {
     background: #f1f5f9;
@@ -65,6 +66,7 @@ QToolButton {
     padding: 6px 10px;
     color: #0f172a;
     font-weight: 700;
+    font-family: "Segoe UI", "Inter", "Arial";
 }
 QToolButton:hover {
     background: #f1f5f9;

@@ -44,9 +44,9 @@ def get_active_interface() -> str | None:
     return output if output else None
 
 
-def get_current_dns() -> list[str]:
+def get_current_dns_ipv4() -> list[str]:
     """
-    Ritorna la lista DNS attualmente configurata sull'interfaccia attiva
+    Ritorna la lista DNS IPv4 sull'interfaccia attiva
     """
     iface = get_active_interface()
     if not iface:
@@ -56,6 +56,24 @@ def get_current_dns() -> list[str]:
         "powershell",
         "-Command",
         f"(Get-DnsClientServerAddress -InterfaceAlias '{iface}' -AddressFamily IPv4).ServerAddresses"
+    ])
+
+    dns = [line.strip() for line in output.splitlines() if line.strip()]
+    return dns
+
+
+def get_current_dns_ipv6() -> list[str]:
+    """
+    Ritorna la lista DNS IPv6 sull'interfaccia attiva
+    """
+    iface = get_active_interface()
+    if not iface:
+        return []
+
+    output = _run([
+        "powershell",
+        "-Command",
+        f"(Get-DnsClientServerAddress -InterfaceAlias '{iface}' -AddressFamily IPv6).ServerAddresses"
     ])
 
     dns = [line.strip() for line in output.splitlines() if line.strip()]
@@ -72,11 +90,14 @@ def refresh_dns_state() -> None:
     NON modifica il sistema
     """
     iface = get_active_interface()
-    dns = get_current_dns()
+    dns_v4 = get_current_dns_ipv4()
+    dns_v6 = get_current_dns_ipv6()
 
     state = {
         "interface": iface,
-        "dns": dns
+        "dns": dns_v4,
+        "dns_ipv4": dns_v4,
+        "dns_ipv6": dns_v6
     }
 
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -98,9 +119,9 @@ def load_dns_state() -> dict | None:
 # MODIFICA DNS SISTEMA
 # =========================
 
-def set_dns_localhost() -> None:
+def set_dns_localhost_ipv4() -> None:
     """
-    Imposta DNS a 127.0.0.1 sull'interfaccia attiva
+    Imposta DNS IPv4 a 127.0.0.1 sull'interfaccia attiva
     """
     iface = get_active_interface()
     if not iface:
@@ -117,12 +138,43 @@ def set_dns_localhost() -> None:
         "127.0.0.1"
     ])
 
-    print("[DNS] DNS impostato su 127.0.0.1")
+    print("[DNS] DNS IPv4 impostato su 127.0.0.1")
 
 
-def set_dns_automatic() -> None:
+def set_dns_localhost_ipv6() -> None:
     """
-    Ripristina DNS automatico (DHCP)
+    Imposta DNS IPv6 a ::1 sull'interfaccia attiva
+    """
+    iface = get_active_interface()
+    if not iface:
+        raise RuntimeError("Interfaccia di rete non trovata")
+
+    _run([
+        "netsh",
+        "interface",
+        "ipv6",
+        "set",
+        "dnsservers",
+        f"interface={iface}",
+        "static",
+        "::1",
+        "primary"
+    ])
+
+    print("[DNS] DNS IPv6 impostato su ::1")
+
+
+def set_dns_localhost() -> None:
+    """
+    Imposta DNS IPv4 e IPv6 su localhost
+    """
+    set_dns_localhost_ipv4()
+    set_dns_localhost_ipv6()
+
+
+def set_dns_automatic_ipv4() -> None:
+    """
+    Ripristina DNS IPv4 automatico (DHCP)
     """
     iface = get_active_interface()
     if not iface:
@@ -138,4 +190,33 @@ def set_dns_automatic() -> None:
         "dhcp"
     ])
 
-    print("[DNS] DNS ripristinato su automatico (DHCP)")
+    print("[DNS] DNS IPv4 ripristinato su automatico (DHCP)")
+
+
+def set_dns_automatic_ipv6() -> None:
+    """
+    Ripristina DNS IPv6 automatico
+    """
+    iface = get_active_interface()
+    if not iface:
+        raise RuntimeError("Interfaccia di rete non trovata")
+
+    _run([
+        "netsh",
+        "interface",
+        "ipv6",
+        "set",
+        "dnsservers",
+        f"interface={iface}",
+        "dhcp"
+    ])
+
+    print("[DNS] DNS IPv6 ripristinato su automatico")
+
+
+def set_dns_automatic() -> None:
+    """
+    Ripristina DNS IPv4 e IPv6 automatico
+    """
+    set_dns_automatic_ipv4()
+    set_dns_automatic_ipv6()

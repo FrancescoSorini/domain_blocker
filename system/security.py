@@ -1,5 +1,7 @@
+import getpass
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 """
@@ -18,6 +20,7 @@ Responsabilità:
 
 SECURITY_DIR = Path(__file__).resolve().parent
 PASSWORD_FILE = SECURITY_DIR / "admin_password.json"
+AUDIT_FILE = SECURITY_DIR / "password_audit.log"
 
 # =========================
 # PASSWORD DI DEFAULT (SOLO PRIMO AVVIO)
@@ -67,6 +70,32 @@ def _hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
+def _append_audit(event: str, success: bool, reason: str | None = None) -> None:
+    """
+    Scrive un record di audit in formato JSON lines.
+    Non include mai password in chiaro.
+    """
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "user": getpass.getuser(),
+        "event": event,
+        "success": success,
+    }
+    if reason:
+        record["reason"] = reason
+
+    AUDIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(AUDIT_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def audit_password_change_attempt(success: bool, reason: str | None = None) -> None:
+    """
+    Registra un tentativo di cambio password.
+    """
+    _append_audit("change_password", success, reason)
+
+
 # =========================
 # API PUBBLICA
 # =========================
@@ -90,8 +119,10 @@ def change_password(current_password: str, new_password: str) -> bool:
     Cambia la password SOLO se quella attuale è corretta.
     """
     if not check_password(current_password):
+        audit_password_change_attempt(False, "invalid_current_password")
         return False
 
     new_hash = _hash_password(new_password)
     _save_password_hash(new_hash)
+    audit_password_change_attempt(True)
     return True

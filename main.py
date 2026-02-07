@@ -20,14 +20,15 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
 
+    window.show()
     # =========================
-    # Ripristino stato blocker
+    # Ripristino stato blocker + recovery
     # =========================
-    if load_state():
+    persisted_enabled = load_state()
+    recovery_started = window.run_startup_recovery(persisted_enabled)
+    if persisted_enabled and not recovery_started:
         window.append_log("[AUTO] Ripristino stato ATTIVO")
         window.start_blocker()
-
-    window.show()
     sys.exit(app.exec())
 
 

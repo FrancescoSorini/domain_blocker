@@ -116,12 +116,19 @@ class TestNetwork(unittest.TestCase):
         with mock.patch.object(network, "_run", return_value="Wi-Fi"):
             self.assertEqual(network.get_active_interface(), "Wi-Fi")
 
-    def test_get_current_dns(self):
+    def test_get_current_dns_ipv4(self):
         with (
             mock.patch.object(network, "get_active_interface", return_value="Wi-Fi"),
             mock.patch.object(network, "_run", return_value="1.1.1.1\n8.8.8.8\n"),
         ):
-            self.assertEqual(network.get_current_dns(), ["1.1.1.1", "8.8.8.8"])
+            self.assertEqual(network.get_current_dns_ipv4(), ["1.1.1.1", "8.8.8.8"])
+
+    def test_get_current_dns_ipv6(self):
+        with (
+            mock.patch.object(network, "get_active_interface", return_value="Wi-Fi"),
+            mock.patch.object(network, "_run", return_value="2001:4860:4860::8888\n"),
+        ):
+            self.assertEqual(network.get_current_dns_ipv6(), ["2001:4860:4860::8888"])
 
     def test_refresh_and_load_dns_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -129,12 +136,15 @@ class TestNetwork(unittest.TestCase):
             with (
                 mock.patch.object(network, "STATE_PATH", state_path),
                 mock.patch.object(network, "get_active_interface", return_value="Wi-Fi"),
-                mock.patch.object(network, "get_current_dns", return_value=["1.1.1.1"]),
+                mock.patch.object(network, "get_current_dns_ipv4", return_value=["1.1.1.1"]),
+                mock.patch.object(network, "get_current_dns_ipv6", return_value=["2001:4860:4860::8888"]),
             ):
                 network.refresh_dns_state()
                 data = json.loads(state_path.read_text())
                 self.assertEqual(data["interface"], "Wi-Fi")
                 self.assertEqual(data["dns"], ["1.1.1.1"])
+                self.assertEqual(data["dns_ipv4"], ["1.1.1.1"])
+                self.assertEqual(data["dns_ipv6"], ["2001:4860:4860::8888"])
 
                 loaded = network.load_dns_state()
                 self.assertEqual(loaded, data)
