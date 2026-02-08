@@ -1,7 +1,9 @@
+import sys
 from datetime import datetime, timedelta, time as dt_time
 from pathlib import Path
 
 from PyQt6.QtCore import QTime, QTimer
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QPushButton, QTextEdit, QLabel,
@@ -25,6 +27,11 @@ from state.schedule_state import (
     load_schedule,
     clear_schedule,
 )
+def _resource_path(rel_path: str) -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / rel_path
+    return Path(__file__).resolve().parent.parent / rel_path
+
 
 
 class MainWindow(QMainWindow):
@@ -32,6 +39,9 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("DNS Domain Blocker")
+        icon_path = _resource_path("assets/app.ico")
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(900, 620)
         self.setMinimumSize(820, 560)
 

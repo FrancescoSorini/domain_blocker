@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+
+# Runtime state
+state/*.json
+system/*.json
+system/*.log
+
+# OS
+.DS_Store
+Thumbs.db

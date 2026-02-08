@@ -1,4 +1,8 @@
 import sys
+import ctypes
+from pathlib import Path
+
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from gui.main_window import MainWindow
@@ -7,6 +11,18 @@ from state.blocker_state import load_state
 
 
 def main():
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "DNSDomainBlocker.App"
+        )
+    except Exception:
+        pass
+
+    def _resource_path(rel_path: str) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(sys._MEIPASS) / rel_path
+        return Path(__file__).resolve().parent / rel_path
+
     # =========================
     # Controllo privilegi admin
     # =========================
@@ -18,6 +34,9 @@ def main():
     # Avvio GUI
     # =========================
     app = QApplication(sys.argv)
+    icon_path = _resource_path("assets/app.ico")
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
     window = MainWindow()
 
     window.show()
